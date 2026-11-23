@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediManager: medical inventory and hospital records</title>
+<meta name="description" content="Track doctors, nurses, duty rosters, medicine stock, profit and patient admissions in one place.">
+<meta name="theme-color" content="#f7f9f8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400..700&family=Funnel+Sans:wght@400..600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7f9f8;--surface:#ebf0ee;--card:#fff;--ink:#06525c;--muted:#2f737d;--action:#06525c;--action-ink:#f7f9f8;--line:color-mix(in oklab,#06525c 14%,transparent);--line-strong:color-mix(in oklab,#06525c 30%,transparent);--red:#b3261e;--amber:#9a5b00;--green:#1c6e43;--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--s-7:48px;--r-sm:8px;--r-md:12px;--r-btn:8px;--btn-h:44px;--btn-h-sm:36px;--font-display:"Funnel Display",system-ui,sans-serif;--font-text:"Funnel Sans",system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--font-text);font-size:16px;line-height:1.5;background:var(--bg);color:var(--ink);display:flex;min-height:100vh;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-display);font-weight:400;letter-spacing:-.03em;margin:0}
+:focus-visible{outline:2px solid var(--action);outline-offset:2px}
+.sidebar{width:248px;flex:none;background:var(--bg);border-right:1px solid var(--line);padding:var(--s-5) var(--s-4);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:var(--s-3);font-size:20px;font-weight:500;padding:0 var(--s-3) var(--s-5)}
+.mark{display:grid;place-items:center;width:32px;height:32px;border-radius:var(--r-sm);background:var(--ink);color:var(--bg);font-size:16px;letter-spacing:0}
+.sidebar nav{display:flex;flex-direction:column;gap:var(--s-1);flex:1}
+.sidebar nav button{position:relative;font:inherit;background:none;border:0;color:var(--ink);text-align:left;min-height:var(--btn-h);padding:0 var(--s-4);border-radius:var(--r-sm);cursor:pointer;transition:background-color .15s}
+.sidebar nav button:hover{background:color-mix(in oklab,var(--surface) 70%,transparent)}
+.sidebar nav button.active{background:var(--surface);font-weight:600}
+.sidebar nav button.active::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;border-radius:2px;background:var(--action)}
+.reset,button.cancel,td .mini{font:inherit;height:var(--btn-h-sm);padding:0 var(--s-4);border-radius:var(--r-btn);border:1px solid var(--line-strong);background:var(--bg);color:var(--ink);font-size:14px;font-weight:500;cursor:pointer;transition:background-color .15s,border-color .15s,transform .1s}
+button.cancel{height:var(--btn-h);font-size:16px;padding:0 var(--s-5)}
+.reset:hover,button.cancel:hover,td .mini:hover{background:color-mix(in oklab,var(--bg) 94%,var(--ink));border-color:color-mix(in oklab,var(--ink) 40%,transparent)}
+.reset:active,button.cancel:active,td .mini:active,button.primary:active{transform:translateY(1px) scale(.99)}
+td .mini{margin-right:var(--s-2)}
+td .mini.del{color:var(--red)}
+main{flex:1;min-width:0;padding:var(--s-7);max-width:1360px}
+.view{display:none}.view.active{display:block}
+main h2{font-size:clamp(28px,1.6vw + 18px,40px);line-height:1.15;margin-bottom:var(--s-6)}
+main h3{font-size:20px;font-weight:500;margin-bottom:var(--s-4)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--s-5);margin-bottom:var(--s-5)}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--s-4) var(--s-5)}
+.form label{display:flex;flex-direction:column;font-size:14px;font-weight:500;color:var(--muted);gap:var(--s-2)}
+.form .wide{grid-column:1/-1}
+input,select,textarea{font:inherit;font-size:16px;font-weight:400;height:48px;padding:0 var(--s-4);border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--bg);color:var(--ink);width:100%;transition:border-color .15s}
+textarea{height:auto;min-height:96px;padding:var(--s-3) var(--s-4);resize:vertical}
+input:hover,select:hover,textarea:hover{border-color:color-mix(in oklab,var(--ink) 50%,transparent)}
+.actions{grid-column:1/-1;display:flex;gap:var(--s-3);flex-wrap:wrap}
+button.primary{font:inherit;height:var(--btn-h);padding:0 var(--s-5);border-radius:var(--r-btn);border:1px solid transparent;background:var(--action);color:var(--action-ink);font-weight:500;cursor:pointer;transition:background-color .15s,transform .1s}
+button.primary:hover{background:color-mix(in oklab,var(--action) 84%,#000)}
+.search{max-width:360px;margin-bottom:var(--s-4)}
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;background:linear-gradient(to right,var(--card) 30%,transparent) left center/40px 100% no-repeat local,linear-gradient(to left,var(--card) 30%,transparent) right center/40px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(6,82,92,.25),transparent) left center/14px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(6,82,92,.25),transparent) right center/14px 100% no-repeat scroll;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:var(--s-5)}
+table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{padding:var(--s-3) var(--s-4);text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+td.wrap{white-space:normal;min-width:200px}
+th{background:var(--surface);color:var(--muted);font-weight:500;font-size:13px}
+tbody tr:hover td,tr:hover td{background:color-mix(in oklab,var(--surface) 45%,transparent)}
+tr:last-child td{border-bottom:0}
+.empty{padding:var(--s-5);color:var(--muted);text-align:center}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--s-5);margin-bottom:var(--s-5)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--s-5)}
+.card small{color:var(--muted);font-size:13px;font-weight:500}
+.card b{overflow-wrap:anywhere;display:block;font-family:var(--font-display);font-size:28px;font-weight:500;letter-spacing:-.03em;line-height:1.2;margin-top:var(--s-2);font-variant-numeric:tabular-nums}
+.card.good b{color:var(--green)}.card.bad b{color:var(--red)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:var(--s-5)}
+.grid2>*,.panel{min-width:0}
+#view-reports .grid2{grid-template-columns:minmax(0,1fr)}
+.grid2 .panel{margin-bottom:0}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:500;line-height:1.5}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge.ok{background:color-mix(in oklab,var(--green) 12%,var(--bg));color:var(--green)}
+.badge.low{background:color-mix(in oklab,var(--amber) 12%,var(--bg));color:var(--amber)}
+.badge.out{background:color-mix(in oklab,var(--red) 12%,var(--bg));color:var(--red)}
+.chart{display:flex;align-items:flex-end;gap:var(--s-3);height:220px;padding-top:var(--s-3)}
+.bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:13px;color:var(--muted);white-space:nowrap}
+.bar i{display:block;width:100%;background:var(--action);border-radius:6px 6px 0 0;min-height:2px}
+.bar span{margin-bottom:var(--s-1);color:var(--ink);font-weight:500}
+ul.list{list-style:none;margin:0;padding:0}
+ul.list li{padding:var(--s-3) 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:var(--s-3)}
+ul.list li:last-child{border:0}
+.combo{position:relative}
+.combo__list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;max-height:240px;overflow:auto;margin:0;padding:var(--s-1);list-style:none;background:var(--card);border:1px solid var(--line-strong);border-radius:var(--r-sm);box-shadow:0 8px 24px color-mix(in oklab,var(--ink) 12%,transparent)}
+.combo__list[hidden]{display:none}
+.combo__list li{display:flex;justify-content:space-between;gap:var(--s-3);padding:10px var(--s-3);border-radius:6px;font-size:16px;font-weight:400;color:var(--ink);cursor:pointer}
+.combo__list li small{color:var(--muted);font-size:13px}
+.combo__list li.is-active{background:var(--surface)}
+.combo__list li.combo__empty{color:var(--muted);cursor:default}
+.combo>select,.form label>select[hidden]{display:none}
+.filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--s-4);margin-bottom:var(--s-5)}
+.filters label{display:flex;flex-direction:column;gap:var(--s-2);font-size:14px;font-weight:500;color:var(--muted)}
+.filters input{width:200px}
+.scroll-hint{display:none}
+td.top{font-weight:600}
+@media(max-width:760px){
+.filters input{width:100%}
+.filters label{flex:1}
+.scroll-hint{display:block;margin:0 0 var(--s-2);font-size:13px;color:var(--muted)}
+.scroll-hint[hidden]{display:none}
+.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:var(--s-3)!important}
+.card{padding:var(--s-4)}
+.card b{font-size:22px}
+.card small{display:block;min-height:2.6em;line-height:1.3}
+.panel{padding:var(--s-4)}
+main h2{font-size:30px;margin-bottom:var(--s-5)}
+.form{grid-template-columns:minmax(0,1fr);gap:var(--s-3)}
+.tablewrap{margin-left:calc(var(--s-1) * -1);margin-right:calc(var(--s-1) * -1)}
+th,td{padding:10px 12px;font-size:14px}
+.search{max-width:none}
+.chart{overflow-x:auto;gap:var(--s-2);padding-bottom:var(--s-2)}
+.bar{flex:0 0 48px}
+.combo__list{max-height:200px}
+body{flex-direction:column}
+.sidebar{width:100%;height:auto;position:static;border-right:0;border-bottom:1px solid var(--line);padding:var(--s-3)}
+.brand{padding-bottom:var(--s-3)}
+.sidebar nav{flex-direction:row;overflow-x:auto}
+.sidebar nav button{white-space:nowrap}
+.reset{display:none}
+main{padding:var(--s-5) var(--s-4)}
+.cards{gap:var(--s-3)}
+.actions button{flex:1 1 auto;white-space:nowrap;padding:0 var(--s-4)}
+.chart{gap:var(--s-1)}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <h1 class="brand"><span class="mark" aria-hidden="true">M</span>MediManager</h1>
+  <nav>
+    <button data-view="dashboard" class="active" aria-current="page">Dashboard</button>
+    <button data-view="doctors">Doctors</button>
+    <button data-view="nurses">Nurses</button>
+    <button data-view="duties">Duty allocation</button>
+    <button data-view="medicines">Medicine stock</button>
+    <button data-view="calculator">Calculator</button>
+    <button data-view="patients">Admissions</button>
+    <button data-view="reports">Reports</button>
+  </nav>
+  <button id="resetData" class="reset">Reset all data</button>
+</aside>
+<main>
+<section id="view-dashboard" class="view active">
+  <h2>Dashboard</h2>
+  <div class="cards" id="dashCards"></div>
+  <div class="grid2">
+    <div class="panel"><h3>Low-stock medicines</h3><div id="lowStock"></div></div>
+    <div class="panel"><h3>Recent admissions</h3><div id="recentPatients"></div></div>
+  </div>
+</section>
+<section id="view-doctors" class="view">
+  <h2>Doctor information</h2>
+  <form class="panel form" data-store="doctors">
+    <input type="hidden" name="id">
+    <label>Name<input name="name" required></label>
+    <label>Specialization<input name="specialization" required></label>
+    <label>Phone<input name="phone" type="tel"></label>
+    <label>Email<input name="email" type="email"></label>
+    <label>Experience (yrs)<input name="experience" type="number" min="0"></label>
+    <label class="wide">Extra notes<input name="notes"></label>
+    <div class="actions"><button class="primary">Save doctor</button><button type="button" class="cancel">Clear form</button></div>
+  </form>
+  <input class="search" data-search="doctors" placeholder="Search doctors…" aria-label="Search doctors">
+  <div class="tablewrap"><table id="tbl-doctors"></table></div>
+</section>
+<section id="view-nurses" class="view">
+  <h2>Nurse information</h2>
+  <form class="panel form" data-store="nurses">
+    <input type="hidden" name="id">
+    <label>Name<input name="name" required></label>
+    <label>Ward / Department<input name="ward"></label>
+    <label>Phone<input name="phone" type="tel"></label>
+    <label>Qualification<input name="qualification"></label>
+    <label>Experience (yrs)<input name="experience" type="number" min="0"></label>
+    <label class="wide">Extra notes<input name="notes"></label>
+    <div class="actions"><button class="primary">Save nurse</button><button type="button" class="cancel">Clear form</button></div>
+  </form>
+  <input class="search" data-search="nurses" placeholder="Search nurses…" aria-label="Search nurses">
+  <div class="tablewrap"><table id="tbl-nurses"></table></div>
+</section>
+<section id="view-duties" class="view">
+  <h2>Duty allocation</h2>
+  <form class="panel form" data-store="duties">
+    <input type="hidden" name="id">
+    <label>Staff member<select name="staffRef" id="dutyStaff" required data-blank></select></label>
+    <label>Date<input name="date" type="date" required></label>
+    <label>Shift
+      <select name="shift"><option>Morning (6am–2pm)</option><option>Evening (2pm–10pm)</option><option>Night (10pm–6am)</option></select>
+    </label>
+    <label>Ward / Department<input name="ward" placeholder="ICU, OPD, Ward 2…"></label>
+    <label class="wide">Notes<input name="notes"></label>
+    <div class="actions"><button class="primary">Allocate duty</button><button type="button" class="cancel">Clear form</button></div>
+  </form>
+  <input class="search" data-search="duties" placeholder="Search duties…" aria-label="Search duties">
+  <div class="tablewrap"><table id="tbl-duties"></table></div>
+</section>
+<section id="view-medicines" class="view">
+  <h2>Medicine stock</h2>
+  <form class="panel form" data-store="medicines">
+    <input type="hidden" name="id">
+    <label>Medicine name<input name="name" required></label>
+    <label>Category<input name="category" placeholder="Antibiotic, Painkiller…"></label>
+    <label>Batch no.<input name="batch"></label>
+    <label>Expiry date<input name="expiry" type="date"></label>
+    <label>Quantity in stock<input name="qty" type="number" min="0" required></label>
+    <label>Cost price / unit (₹)<input name="cost" type="number" min="0" step="0.01" required></label>
+    <label>Selling price / unit (₹)<input name="price" type="number" min="0" step="0.01" required></label>
+    <label>Reorder level<input name="reorder" type="number" min="0" value="10"></label>
+    <div class="actions"><button class="primary">Save medicine</button><button type="button" class="cancel">Clear form</button></div>
+  </form>
+  <input class="search" data-search="medicines" placeholder="Search medicines…" aria-label="Search medicines">
+  <div class="tablewrap"><table id="tbl-medicines"></table></div>
+</section>
+<section id="view-calculator" class="view">
+  <h2>Medicine calculator</h2>
+  <form class="panel form" id="calcForm">
+    <label>Medicine<select id="calcMed" data-blank></select></label>
+    <label>Quantity<input id="calcQty" type="number" min="1" value="1"></label>
+    <label>Patient (optional)<select id="calcPatient"></select></label>
+    <div class="actions"><button class="primary" id="recordSale">Record sale and reduce stock</button></div>
+  </form>
+  <div class="cards" id="calcResult"></div>
+  <h3>Recent sales</h3>
+  <div class="tablewrap"><table id="tbl-sales"></table></div>
+</section>
+<section id="view-patients" class="view">
+  <h2>Patient admission list</h2>
+  <form class="panel form" data-store="patients">
+    <input type="hidden" name="id">
+    <label>Patient name<input name="name" required></label>
+    <label>Age<input name="age" type="number" min="0" max="130"></label>
+    <label>Gender<select name="gender"><option>Male</option><option>Female</option><option>Other</option></select></label>
+    <label>Phone<input name="phone" type="tel"></label>
+    <label>Admission date<input name="admitDate" type="date" required></label>
+    <label>Allocated doctor<select name="doctorId" id="patDoctor" required data-blank></select></label>
+    <label>Assigned nurse<select name="nurseId" id="patNurse"></select></label>
+    <label>Room / Bed<input name="room"></label>
+    <label>Diagnosis<input name="diagnosis"></label>
+    <label>Status<select name="status"><option>Admitted</option><option>Discharged</option></select></label>
+    <label>Fee / bill amount (₹)<input name="fee" type="number" min="0" step="0.01" placeholder="0"></label>
+    <label>Amount received (₹)<input name="paid" type="number" min="0" step="0.01" placeholder="0"></label>
+    <label class="wide">Extra information<textarea name="notes" rows="2" placeholder="Allergies, history, insurance, family contact…"></textarea></label>
+    <div class="actions"><button class="primary">Save admission</button><button type="button" class="cancel">Clear form</button></div>
+  </form>
+  <input class="search" data-search="patients" placeholder="Search patients by name, doctor, diagnosis…" aria-label="Search patients">
+  <div class="tablewrap"><table id="tbl-patients"></table></div>
+</section>
+<section id="view-reports" class="view">
+  <h2>Profit and monthly reports</h2>
+  <div class="cards" id="profitCards"></div>
+  <div class="panel">
+    <h3>Doctor-wise patients and collection</h3>
+    <div class="filters">
+      <label>Month<input type="month" id="docMonth"></label>
+      <button type="button" class="cancel" id="docMonthClear">All months</button>
+    </div>
+    <div class="cards" id="docCards"></div>
+    <div class="tablewrap"><table id="tbl-docStats"></table></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h3>Monthly patient count</h3><div id="patientChart" class="chart"></div></div>
+    <div class="panel"><h3>Monthly medicine profit</h3><div class="tablewrap"><table id="tbl-monthProfit"></table></div></div>
+  </div>
+</section>
+</main>
+<script>
+const KEY = 'medimanager_v1';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const today = () => new Date().toISOString().slice(0, 10);
+const monthKey = d => (d || '').slice(0, 7);
+const monthLabel = k => { const [y, m] = k.split('-'); return new Date(y, m - 1).toLocaleString('en', { month: 'short', year: '2-digit' }); };
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+function seed() {
+  const d1 = uid(), d2 = uid(), n1 = uid(), n2 = uid(), m1 = uid(), m2 = uid(), m3 = uid();
+  return {
+    doctors: [
+      { id: d1, name: 'Dr. Meena Raghavan', specialization: 'General Medicine', phone: '9876543210', email: 'meena@hospital.com', experience: 12, notes: 'OPD Mon–Fri' },
+      { id: d2, name: 'Dr. Arun Kumar', specialization: 'Orthopedics', phone: '9876501234', email: 'arun@hospital.com', experience: 8, notes: '' }
+    ],
+    nurses: [
+      { id: n1, name: 'Lakshmi S', ward: 'Ward 1', phone: '9000011111', qualification: 'B.Sc Nursing', experience: 5, notes: '' },
+      { id: n2, name: 'Priya R', ward: 'ICU', phone: '9000022222', qualification: 'GNM', experience: 3, notes: '' }
+    ],
+    duties: [
+      { id: uid(), staffRef: 'd:' + d1, date: today(), shift: 'Morning (6am–2pm)', ward: 'OPD', notes: '' },
+      { id: uid(), staffRef: 'n:' + n2, date: today(), shift: 'Night (10pm–6am)', ward: 'ICU', notes: '' }
+    ],
+    medicines: [
+      { id: m1, name: 'Paracetamol 500mg', category: 'Painkiller', batch: 'PC102', expiry: '2027-08-01', qty: 200, cost: 1.2, price: 2, reorder: 50 },
+      { id: m2, name: 'Amoxicillin 250mg', category: 'Antibiotic', batch: 'AM771', expiry: '2027-03-01', qty: 8, cost: 6, price: 9.5, reorder: 20 },
+      { id: m3, name: 'ORS Sachet', category: 'Supplement', batch: 'OR552', expiry: '2027-12-01', qty: 90, cost: 8, price: 12, reorder: 30 }
+    ],
+    sales: [
+      { id: uid(), date: daysAgo(40), medId: m1, medName: 'Paracetamol 500mg', qty: 50, cost: 60, revenue: 100, profit: 40, patient: '' },
+      { id: uid(), date: daysAgo(5), medId: m3, medName: 'ORS Sachet', qty: 10, cost: 80, revenue: 120, profit: 40, patient: '' }
+    ],
+    patients: [
+      { id: uid(), name: 'Ravi Shankar', age: 45, gender: 'Male', phone: '9111122222', admitDate: daysAgo(35), doctorId: d1, nurseId: n1, room: 'W1-B4', diagnosis: 'Typhoid', status: 'Discharged', notes: 'Allergic to penicillin', fee: 3500, paid: 3500 },
+      { id: uid(), name: 'Anitha K', age: 32, gender: 'Female', phone: '9222233333', admitDate: daysAgo(3), doctorId: d2, nurseId: n2, room: 'ICU-2', diagnosis: 'Fracture – left arm', status: 'Admitted', notes: 'Insurance: Star Health', fee: 12000, paid: 5000 },
+      { id: uid(), name: 'Suresh M', age: 58, gender: 'Male', phone: '9333344444', admitDate: daysAgo(10), doctorId: d1, nurseId: n1, room: 'W1-B2', diagnosis: 'Diabetes check', status: 'Discharged', notes: '', fee: 2500, paid: 2500 },
+      { id: uid(), name: 'Divya P', age: 27, gender: 'Female', phone: '9444455555', admitDate: daysAgo(1), doctorId: d1, nurseId: n2, room: 'W1-B6', diagnosis: 'Viral fever', status: 'Admitted', notes: '', fee: 1800, paid: 800 }
+    ]
+  };
+}
+let db = JSON.parse(localStorage.getItem(KEY) || 'null') || seed();
+const save = () => localStorage.setItem(KEY, JSON.stringify(db));
+const doctorName = id => (db.doctors.find(x => x.id === id) || {}).name || '— (removed)';
+const nurseName = id => id ? ((db.nurses.find(x => x.id === id) || {}).name || '— (removed)') : '—';
+const staffName = ref => {
+  const [t, id] = (ref || '').split(':');
+  const p = (t === 'd' ? db.doctors : db.nurses).find(x => x.id === id);
+  return p ? `${p.name} (${t === 'd' ? 'Doctor' : 'Nurse'})` : '— (removed)';
+};
+const stockBadge = m => m.qty <= 0 ? '<span class="badge out">Out of stock</span>'
+  : m.qty <= m.reorder ? '<span class="badge low">Low</span>' : '<span class="badge ok">In stock</span>';
+const expired = m => m.expiry && m.expiry < today();
+const tables = {
+  doctors: [['name', 'Name'], ['specialization', 'Specialization'], ['phone', 'Phone'], ['email', 'Email'], ['experience', 'Exp (yrs)'], ['notes', 'Notes']],
+  nurses: [['name', 'Name'], ['ward', 'Ward'], ['phone', 'Phone'], ['qualification', 'Qualification'], ['experience', 'Exp (yrs)'], ['notes', 'Notes']],
+  duties: [['date', 'Date'], ['staffRef', 'Staff', r => staffName(r.staffRef)], ['shift', 'Shift'], ['ward', 'Ward'], ['notes', 'Notes']],
+  medicines: [['name', 'Medicine'], ['category', 'Category'], ['batch', 'Batch'],
+    ['expiry', 'Expiry', r => esc(r.expiry || '—') + (expired(r) ? ' <span class="badge out">Expired</span>' : '')],
+    ['qty', 'Stock'], ['cost', 'Cost', r => money(r.cost)], ['price', 'Price', r => money(r.price)],
+    ['status', 'Status', r => stockBadge(r)]],
+  patients: [['admitDate', 'Admitted'], ['name', 'Patient'], ['age', 'Age'], ['gender', 'Gender'], ['phone', 'Phone'],
+    ['doctorId', 'Doctor', r => doctorName(r.doctorId)], ['nurseId', 'Nurse', r => nurseName(r.nurseId)],
+    ['room', 'Room'], ['diagnosis', 'Diagnosis'],
+    ['fee', 'Fee', r => money(r.fee)], ['paid', 'Received', r => money(r.paid)], ['due', 'Pending', r => money((Number(r.fee) || 0) - (Number(r.paid) || 0))],
+    ['status', 'Status', r => `<span class="badge ${r.status === 'Admitted' ? 'low' : 'ok'}">${esc(r.status)}</span>`],
+    ['notes', 'Extra info', r => esc(r.notes), 'wrap']]
+};
+function renderTable(store) {
+  const t = $('#tbl-' + store), cols = tables[store];
+  let rows = db[store].slice();
+  if (store === 'duties' || store === 'patients') rows.sort((a, b) => (b.date || b.admitDate || '').localeCompare(a.date || a.admitDate || ''));
+  const head = '<tr>' + cols.map(c => `<th>${c[1]}</th>`).join('') + '<th>Actions</th></tr>';
+  if (!rows.length) { t.innerHTML = head + `<tr><td class="empty" colspan="${cols.length + 1}">No records yet</td></tr>`; return; }
+  t.innerHTML = head + rows.map(r => '<tr>' + cols.map(c => {
+    const v = c[2] ? c[2](r) : esc(r[c[0]] ?? '');
+    return `<td${c[3] ? ` class="${c[3]}"` : ''}>${v}</td>`;
+  }).join('') +
+    `<td><button class="mini" data-act="edit" data-store="${store}" data-id="${r.id}">Edit</button>` +
+    `<button class="mini del" data-act="del" data-store="${store}" data-id="${r.id}">Delete</button></td></tr>`).join('');
+}
+function fillSelects() {
+  const keep = (sel, html) => { const v = sel.value; sel.innerHTML = html; if (v !== '' && [...sel.options].some(o => o.value === v)) sel.value = v; else if (sel.dataset.blank !== undefined) sel.selectedIndex = -1; };
+  keep($('#dutyStaff'),
+    '<optgroup label="Doctors">' + db.doctors.map(d => `<option value="d:${d.id}">${esc(d.name)}</option>`).join('') + '</optgroup>' +
+    '<optgroup label="Nurses">' + db.nurses.map(n => `<option value="n:${n.id}">${esc(n.name)}</option>`).join('') + '</optgroup>');
+  keep($('#patDoctor'), db.doctors.map(d => `<option value="${d.id}">${esc(d.name)} – ${esc(d.specialization)}</option>`).join(''));
+  keep($('#patNurse'), '<option value="">— none —</option>' + db.nurses.map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join(''));
+  keep($('#calcMed'), db.medicines.map(m => `<option value="${m.id}">${esc(m.name)} (stock ${m.qty})</option>`).join(''));
+  keep($('#calcPatient'), '<option value="">— none —</option>' + db.patients.filter(p => p.status === 'Admitted').map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join(''));
+}
+function renderDashboard() {
+  const units = db.medicines.reduce((s, m) => s + m.qty, 0);
+  const value = db.medicines.reduce((s, m) => s + m.qty * m.cost, 0);
+  const low = db.medicines.filter(m => m.qty <= m.reorder);
+  const profit = db.sales.reduce((s, x) => s + x.profit, 0);
+  const admitted = db.patients.filter(p => p.status === 'Admitted').length;
+  const thisMonth = db.patients.filter(p => monthKey(p.admitDate) === monthKey(today())).length;
+  const card = (l, v, c = '') => `<div class="card ${c}"><small>${l}</small><b>${v}</b></div>`;
+  $('#dashCards').innerHTML =
+    card('Doctors', db.doctors.length) + card('Nurses', db.nurses.length) +
+    card('Currently admitted', admitted) + card('Admissions this month', thisMonth) +
+    card('Medicine units in stock', units) + card('Stock value (cost)', money(value)) +
+    card('Low / out of stock', low.length, low.length ? 'bad' : '') + card('Total profit', money(profit), profit >= 0 ? 'good' : 'bad') +
+    card('Patient amount collected', money(db.patients.reduce((s, p) => s + (Number(p.paid) || 0), 0)), 'good') +
+    card('Patient dues pending', money(db.patients.reduce((s, p) => s + (Number(p.fee) || 0) - (Number(p.paid) || 0), 0)));
+  $('#lowStock').innerHTML = low.length
+    ? '<ul class="list">' + low.map(m => `<li><span>${esc(m.name)}</span><span>${m.qty} left ${stockBadge(m)}</span></li>`).join('') + '</ul>'
+    : '<div class="empty">All medicines are above their reorder level.</div>';
+  const recent = db.patients.slice().sort((a, b) => b.admitDate.localeCompare(a.admitDate)).slice(0, 5);
+  $('#recentPatients').innerHTML = recent.length
+    ? '<ul class="list">' + recent.map(p => `<li><span>${esc(p.name)} <small>· ${esc(p.diagnosis)}</small></span><span>${esc(doctorName(p.doctorId))}</span></li>`).join('') + '</ul>'
+    : '<div class="empty">No admissions</div>';
+}
+function renderCalc() {
+  const m = db.medicines.find(x => x.id === $('#calcMed').value);
+  const q = Math.max(0, parseInt($('#calcQty').value) || 0);
+  const out = $('#calcResult');
+  if (!m) { out.innerHTML = '<div class="empty">Search and pick a medicine to see the calculation.</div>'; return; }
+  const cost = q * m.cost, rev = q * m.price, pr = rev - cost;
+  const after = m.qty - q;
+  out.innerHTML =
+    `<div class="card"><small>Total cost</small><b>${money(cost)}</b></div>` +
+    `<div class="card"><small>Total selling amount</small><b>${money(rev)}</b></div>` +
+    `<div class="card ${pr >= 0 ? 'good' : 'bad'}"><small>Profit</small><b>${money(pr)}</b></div>` +
+    `<div class="card ${after < 0 ? 'bad' : ''}"><small>Stock after sale</small><b>${after}</b></div>`;
+}
+function renderSales() {
+  const t = $('#tbl-sales');
+  const head = '<tr><th>Date</th><th>Medicine</th><th>Qty</th><th>Cost</th><th>Amount</th><th>Profit</th><th>Patient</th></tr>';
+  const rows = db.sales.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+  t.innerHTML = head + (rows.length ? rows.map(s =>
+    `<tr><td>${s.date}</td><td>${esc(s.medName)}</td><td>${s.qty}</td><td>${money(s.cost)}</td><td>${money(s.revenue)}</td><td>${money(s.profit)}</td><td>${esc(s.patient || '—')}</td></tr>`).join('')
+    : '<tr><td class="empty" colspan="7">No sales yet</td></tr>');
+}
+function lastMonths(n) {
+  const out = [], d = new Date(); d.setDate(1);
+  for (let i = n - 1; i >= 0; i--) { const x = new Date(d.getFullYear(), d.getMonth() - i, 1); out.push(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0')); }
+  return out;
+}
+function renderReports() {
+  const rev = db.sales.reduce((s, x) => s + x.revenue, 0), cost = db.sales.reduce((s, x) => s + x.cost, 0);
+  $('#profitCards').innerHTML =
+    `<div class="card"><small>Total sales</small><b>${money(rev)}</b></div>` +
+    `<div class="card"><small>Total cost</small><b>${money(cost)}</b></div>` +
+    `<div class="card ${rev - cost >= 0 ? 'good' : 'bad'}"><small>Net profit</small><b>${money(rev - cost)}</b></div>` +
+    `<div class="card"><small>Total patients admitted</small><b>${db.patients.length}</b></div>`;
+  const months = lastMonths(12);
+  const counts = months.map(k => db.patients.filter(p => monthKey(p.admitDate) === k).length);
+  const max = Math.max(1, ...counts);
+  $('#patientChart').innerHTML = months.map((k, i) =>
+    `<div class="bar"><span>${counts[i]}</span><i style="height:${(counts[i] / max) * 150}px"></i>${monthLabel(k)}</div>`).join('');
+  $('#tbl-monthProfit').innerHTML = '<tr><th>Month</th><th>Sales</th><th>Cost</th><th>Profit</th></tr>' +
+    months.slice().reverse().map(k => {
+      const s = db.sales.filter(x => monthKey(x.date) === k);
+      const r = s.reduce((a, x) => a + x.revenue, 0), c = s.reduce((a, x) => a + x.cost, 0);
+      return `<tr><td>${monthLabel(k)}</td><td>${money(r)}</td><td>${money(c)}</td><td>${money(r - c)}</td></tr>`;
+    }).join('');
+}
+function renderDoctorStats() {
+  const month = $('#docMonth').value;
+  const rows = db.doctors.map(d => {
+    const ps = db.patients.filter(p => p.doctorId === d.id && (!month || monthKey(p.admitDate) === month));
+    const billed = ps.reduce((s, p) => s + (Number(p.fee) || 0), 0);
+    const got = ps.reduce((s, p) => s + (Number(p.paid) || 0), 0);
+    return { d, count: ps.length, now: ps.filter(p => p.status === 'Admitted').length, billed, got, due: billed - got };
+  }).sort((a, b) => b.count - a.count || b.got - a.got);
+  const sum = k => rows.reduce((s, r) => s + r[k], 0);
+  const top = rows.length && rows[0].count ? rows[0] : null;
+  const card = (l, v, c = '') => `<div class="card ${c}"><small>${l}</small><b>${v}</b></div>`;
+  $('#docCards').innerHTML =
+    card('Doctor who attended most patients', top ? esc(top.d.name) + ' (' + top.count + ')' : '—') +
+    card('Patients attended', sum('count')) +
+    card('Amount billed', money(sum('billed'))) +
+    card('Amount collected', money(sum('got')), 'good') +
+    card('Pending', money(sum('due')), sum('due') > 0 ? 'bad' : '');
+  const head = '<tr><th>Rank</th><th>Doctor</th><th>Specialization</th><th>Patients</th><th>Admitted now</th><th>Billed</th><th>Collected</th><th>Pending</th></tr>';
+  $('#tbl-docStats').innerHTML = head + (rows.length ? rows.map((r, i) =>
+    `<tr><td>${i + 1}</td><td class="${i === 0 && r.count ? 'top' : ''}">${esc(r.d.name)}${i === 0 && r.count ? ' <span class="badge ok">Most patients</span>' : ''}</td><td>${esc(r.d.specialization)}</td><td>${r.count}</td><td>${r.now}</td><td>${money(r.billed)}</td><td>${money(r.got)}</td><td>${money(r.due)}</td></tr>`).join('')
+    : '<tr><td class="empty" colspan="8">Add doctors first</td></tr>');
+}
+function initCombo(sel) {
+  const wrap = document.createElement('div'); wrap.className = 'combo';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.autocomplete = 'off'; inp.required = sel.required; sel.required = false;
+  inp.placeholder = 'Type to search…';
+  inp.setAttribute('role', 'combobox'); inp.setAttribute('aria-expanded', 'false'); inp.setAttribute('aria-autocomplete', 'list');
+  const list = document.createElement('ul'); list.className = 'combo__list'; list.setAttribute('role', 'listbox'); list.hidden = true;
+  wrap.append(inp, list); sel.before(wrap); sel.hidden = true;
+  let items = [], active = -1;
+  const all = () => [...sel.options].filter(o => o.value !== '').map(o => ({ value: o.value, text: o.text, group: o.parentElement.tagName === 'OPTGROUP' ? o.parentElement.label : '' }));
+  const mark = () => $$('li[data-i]', list).forEach(li => li.classList.toggle('is-active', +li.dataset.i === active));
+  const open = () => { list.hidden = false; inp.setAttribute('aria-expanded', 'true'); };
+  const close = () => { list.hidden = true; inp.setAttribute('aria-expanded', 'false'); active = -1; };
+  const render = q => {
+    q = (q || '').trim().toLowerCase();
+    items = all().filter(o => !q || o.text.toLowerCase().includes(q));
+    list.innerHTML = items.length
+      ? items.map((o, i) => `<li role="option" data-i="${i}">${esc(o.text)}${o.group ? ` <small>${esc(o.group)}</small>` : ''}</li>`).join('')
+      : '<li class="combo__empty">No match</li>';
+    active = items.length && q ? 0 : -1; mark();
+  };
+  const fire = () => { sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); };
+  const choose = o => { const changed = sel.value !== o.value; sel.value = o.value; inp.value = o.text; close(); if (changed) fire(); };
+  const sync = () => { const o = sel.selectedOptions[0]; inp.value = o && o.value !== '' ? o.text : ''; };
+  sel._sync = sync;
+  inp.addEventListener('focus', () => { inp.select(); render(''); open(); });
+  inp.addEventListener('input', () => {
+    if (!inp.value.trim() && sel.value !== '') { sel.selectedIndex = -1; sel.value = ''; fire(); }
+    render(inp.value); open();
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); if (list.hidden) { render(inp.value); open(); }
+      if (items.length) { active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; mark(); $('li.is-active', list)?.scrollIntoView({ block: 'nearest' }); }
+    } else if (e.key === 'Enter') {
+      if (!list.hidden && items[active]) { e.preventDefault(); choose(items[active]); }
+    } else if (e.key === 'Escape') { close(); sync(); }
+  });
+  inp.addEventListener('blur', () => {
+    const t = inp.value.trim().toLowerCase();
+    const exact = t && all().find(o => o.text.toLowerCase() === t);
+    if (exact) choose(exact); else { close(); if (t) sync(); }
+  });
+  list.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const li = e.target.closest('li[data-i]'); if (li) choose(items[+li.dataset.i]);
+  });
+}
+function markScroll() {
+  $$('.tablewrap').forEach(w => {
+    let hint = w.previousElementSibling;
+    if (!hint || !hint.classList.contains('scroll-hint')) {
+      hint = document.createElement('p'); hint.className = 'scroll-hint'; hint.textContent = 'Swipe sideways to see all columns →';
+      w.before(hint);
+    }
+    hint.hidden = w.scrollWidth <= w.clientWidth + 1;
+  });
+}
+function syncCombos() { $$('select').forEach(s => s._sync && s._sync()); }
+function renderAll() {
+  Object.keys(tables).forEach(renderTable);
+  fillSelects(); renderDashboard(); renderCalc(); renderSales(); renderReports(); renderDoctorStats(); syncCombos(); markScroll();
+}
+$$('.sidebar nav button').forEach(b => b.onclick = () => {
+  $$('.sidebar nav button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-current', x === b ? 'page' : 'false'); });
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + b.dataset.view));
+  renderAll();
+});
+$$('form[data-store]').forEach(f => {
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const store = f.dataset.store, data = Object.fromEntries(new FormData(f));
+    $$('input[type=number]', f).forEach(i => { data[i.name] = i.value === '' ? 0 : Number(i.value); });
+    if (store === 'patients' && !data.doctorId) { alert('Search and pick a doctor for this patient. Add the doctor first if the list is empty.'); return; }
+    if (store === 'patients' && data.paid > data.fee) { alert('Amount received cannot be more than the fee.'); return; }
+    if (data.id) {
+      const i = db[store].findIndex(x => x.id === data.id);
+      db[store][i] = data;
+    } else { data.id = uid(); db[store].push(data); }
+    save(); f.reset(); f.id.value = ''; renderAll();
+  });
+  $('.cancel', f).onclick = () => { f.reset(); $('[name=id]', f).value = ''; };
+  f.addEventListener('reset', () => setTimeout(() => {
+    $$('select[data-blank]', f).forEach(s => { s.selectedIndex = -1; });
+    $$('input[name=date], input[name=admitDate]', f).forEach(i => { i.value = today(); });
+    syncCombos();
+  }, 0));
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const { act, store, id } = b.dataset, item = db[store].find(x => x.id === id);
+  if (act === 'del') {
+    if (!confirm('Delete this record?')) return;
+    db[store] = db[store].filter(x => x.id !== id); save(); renderAll();
+  } else if (item) {
+    const f = $(`form[data-store="${store}"]`);
+    [...f.elements].forEach(el => { if (el.name && item[el.name] !== undefined) el.value = item[el.name]; });
+    syncCombos();
+    f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+$$('.search').forEach(s => s.addEventListener('input', () => {
+  const q = s.value.toLowerCase();
+  $$('#tbl-' + s.dataset.search + ' tr').forEach((tr, i) => { if (i) tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+}));
+['calcMed', 'calcQty'].forEach(id => $('#' + id).addEventListener('input', renderCalc));
+$('#calcForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const m = db.medicines.find(x => x.id === $('#calcMed').value);
+  const q = parseInt($('#calcQty').value) || 0;
+  if (!m || q < 1) return;
+  if (q > m.qty) { alert(`Only ${m.qty} units of ${m.name} in stock.`); return; }
+  m.qty -= q;
+  db.sales.push({ id: uid(), date: today(), medId: m.id, medName: m.name, qty: q, cost: q * m.cost, revenue: q * m.price, profit: q * (m.price - m.cost), patient: $('#calcPatient').value });
+  save(); renderAll();
+});
+$('#resetData').onclick = () => {
+  if (confirm('Delete ALL data? (Sample data will be restored)')) { db = seed(); save(); renderAll(); }
+};
+$$('input[name=date], input[name=admitDate]').forEach(i => i.value = today());
+$$('select').forEach(initCombo);
+$('#docMonth').addEventListener('input', () => { renderDoctorStats(); markScroll(); });
+window.addEventListener('resize', markScroll);
+$('#docMonthClear').onclick = () => { $('#docMonth').value = ''; renderDoctorStats(); };
+renderAll();
+</script>
+</body>
+</html>
